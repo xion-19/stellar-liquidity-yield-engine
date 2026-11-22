@@ -1,4 +1,5 @@
 use soroban_sdk::token::TokenClient;
+use soroban_sdk::unwrap::UnwrapOptimized;
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, panic_with_error, Address, Env, Map,
     Symbol, Vec,
@@ -202,6 +203,20 @@ pub struct PoolApyRecord {
     pub updated_by: Address, // Admin or keeper that pushed the observation
 }
 
+/// Data-age snapshot for a pool's oracle feed.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeedDataAge {
+    /// Ledger timestamp of the most recent observation (0 when never published).
+    pub updated_at: u64,
+    /// Seconds elapsed since `updated_at` (0 when never published).
+    pub age_seconds: u64,
+    /// Maximum age configured for this feed.
+    pub max_age_seconds: u64,
+    /// Whether the feed has been published and is within `max_age_seconds`.
+    pub fresh: bool,
+}
+
 /// Default maximum slippage tolerated at execution time: 50 bps (0.5%).
 pub const DEFAULT_MAX_SLIPPAGE_BPS: u32 = 50;
 
@@ -247,9 +262,10 @@ impl RebalanceEngine {
         env.storage()
             .instance()
             .set(&Symbol::new(&env, "max_apy_age"), &DEFAULT_MAX_APY_AGE);
-        env.storage()
-            .instance()
-            .set(&Symbol::new(&env, "max_slippage_bps"), &DEFAULT_MAX_SLIPPAGE_BPS);
+        env.storage().instance().set(
+            &Symbol::new(&env, "max_slippage_bps"),
+            &DEFAULT_MAX_SLIPPAGE_BPS,
+        );
         // Record the storage schema version of this build; `migrate` moves it
         // forward after an upgrade swaps the code.
         crate::upgrade::set_storage_version(&env, crate::upgrade::STORAGE_VERSION);
@@ -422,8 +438,10 @@ impl RebalanceEngine {
         // Slippage protection is re-checked here, at execution time. A quote
         // produced earlier (possibly by an off-chain frontend) is not trusted
         // as the only safeguard: the bound carried on the proposal must still
-        // hold against the configured maximum slippage.
-        if !Self::slippage_allows(&env, &proposal) {
+        // hold against the configured maximum slippage. A zero-amount proposal
+        // moves nothing, so it falls through to `perform_rebalance` and is
+        // recorded as a failed attempt.
+        if moved_amount > 0 && !Self::slippage_allows(&env, &proposal) {
             return false;
         }
 
@@ -471,7 +489,10 @@ impl RebalanceEngine {
     /// Set the maximum slippage tolerated at execution time (admin only).
     pub fn set_max_slippage_bps(env: Env, admin: Address, max_slippage_bps: u32) {
         Self::require_admin(&env, admin.clone());
-        require!(max_slippage_bps <= 10000, "max_slippage_bps must not exceed 10000");
+        require!(
+            max_slippage_bps <= 10000,
+            "max_slippage_bps must not exceed 10000"
+        );
         env.storage()
             .instance()
             .set(&Symbol::new(&env, "max_slippage_bps"), &max_slippage_bps);
@@ -1751,7 +1772,12 @@ impl RebalanceEngine {
     }
 
     /// Set consecutive failure breaker threshold for a specific strategy (admin only).
-    pub fn set_strategy_breaker_threshold(env: Env, admin: Address, strategy_id: u32, threshold: u32) {
+    pub fn set_strategy_breaker_threshold(
+        env: Env,
+        admin: Address,
+        strategy_id: u32,
+        threshold: u32,
+    ) {
         Self::require_admin(&env, admin.clone());
         require!(threshold > 0, "threshold must be greater than zero");
         let mut thresholds: Map<u32, u32> = env
@@ -1764,7 +1790,10 @@ impl RebalanceEngine {
             .instance()
             .set(&Symbol::new(&env, "strat_breaker_thresh"), &thresholds);
         env.events().publish(
-            (Symbol::new(&env, "strat_breaker_thresh_updated"), strategy_id),
+            (
+                Symbol::new(&env, "strat_breaker_thresh_updated"),
+                strategy_id,
+            ),
             (admin, threshold),
         );
     }
@@ -2312,6 +2341,8 @@ mod tests {
 
         let err = client.try_get_strategy(&7).unwrap_err().unwrap();
         assert_eq!(err, RebalanceError::StrategyNotFound.into());
+    }
+
     // ============ REBALANCE PACING TESTS (Issue #302) ============
 
     /// Real token contracts for a rebalance leg: the engine pulls the `from`
@@ -2547,7 +2578,10 @@ mod tests {
 
         assert_eq!(client.get_pool_breaker_threshold(&pool_a), 2);
         assert_eq!(client.get_pool_breaker_threshold(&pool_b), 4);
-        assert_eq!(client.get_pool_breaker_threshold(&pool_c), EMERGENCY_STOP_WINDOW);
+        assert_eq!(
+            client.get_pool_breaker_threshold(&pool_c),
+            EMERGENCY_STOP_WINDOW
+        );
 
         // Record 2 failures for Pool A
         client.execute_rebalance(&caller, &failed_proposal(&env, &pool_a));
