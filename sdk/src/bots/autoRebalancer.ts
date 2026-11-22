@@ -136,10 +136,12 @@ export class AutoRebalancer {
 
   constructor(config: RebalancerConfig, options: AutoRebalancerOptions = {}) {
     this.config = config;
-    this.scanner = new ArbitrageScanner('https://horizon.stellar.org', {
-      roundTripCostEstimator: config.roundTripCostEstimator,
-    });
-    this.executor = new ArbitrageExecutor();
+    this.scanner =
+      options.scanner ??
+      new ArbitrageScanner('https://horizon.stellar.org', {
+        roundTripCostEstimator: config.roundTripCostEstimator,
+      });
+    this.executor = options.executor ?? new ArbitrageExecutor();
     if (config.rpcHeadSource) {
       this.lagMonitor = new RpcLagMonitor(config.rpcHeadSource, config.lagOptions);
     }
@@ -489,11 +491,37 @@ export class AutoRebalancer {
 
   /** Returns true when the cooldown window has elapsed. */
   isReadyForRebalance(): boolean {
-    if (this.lastExecutionTime === 0) {
+    const now = Date.now();
+    if (this.lastExecutionTime !== 0) {
+      const cooldownMs = this.config.cooldownHours * 60 * 60 * 1000;
+      if (now - this.lastExecutionTime < cooldownMs) {
+        return false;
+      }
+    }
+
+    const minute = new Date(now).getMinutes();
+    if (this.config.cronExpression && !this.cronMatchesMinute(this.config.cronExpression, minute)) {
+      return false;
+    }
+    if (this.lastConsumedMinute === minute) {
+      return false;
+    }
+
+    this.lastConsumedMinute = minute;
+    return true;
+  }
+
+  private cronMatchesMinute(expression: string, minute: number): boolean {
+    if (expression === '*') {
       return true;
     }
-    const cooldownMs = this.config.cooldownHours * 60 * 60 * 1000;
-    return Date.now() - this.lastExecutionTime >= cooldownMs;
+    return expression.split(',').some((part) => {
+      const [start, end] = part.split('-').map(Number);
+      if (!Number.isInteger(start)) {
+        return false;
+      }
+      return end === undefined ? minute === start : minute >= start && minute <= end;
+    });
   }
 
   /** Send configured webhook notifications for a successful execution. */

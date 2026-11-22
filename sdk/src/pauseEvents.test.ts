@@ -9,7 +9,7 @@ describe('Pause Event Emission', () => {
     let mockVaultAddress: Address;
 
     beforeEach(() => {
-      mockVaultAddress = new Address('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF');
+      mockVaultAddress = new Address('CA3D5KRYM6CB7OWQ6TWYRR3Z4T7GNZLKERYNZGGA5SOAOPIFY6YQGAXE');
       mockNetworkConfig = {
         network: 'testnet' as const,
         horizonUrl: 'https://horizon-testnet.stellar.org',
@@ -198,7 +198,7 @@ describe('Pause Event Emission', () => {
         contracts: {
           yieldEngine: '',
           rewardDistributor: '',
-          rebalanceEngine: 'CBALANCE',
+          rebalanceEngine: 'CA3D5KRYM6CB7OWQ6TWYRR3Z4T7GNZLKERYNZGGA5SOAOPIFY6YQGAXE',
           strategyRegistry: ''
         }
       };

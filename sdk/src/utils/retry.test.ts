@@ -146,9 +146,9 @@ describe('withRetry', () => {
 
     await withRetry(fn, {
       maxRetries: 4,
-      initialDelayMs: 1000,
+      initialDelayMs: 100,
       backoffMultiplier: 10,
-      maxDelayMs: 2000,
+      maxDelayMs: 200,
       jitter: false,
       onRetry: (attempt, error, delayMs) => {
         delays.push(delayMs);
@@ -157,7 +157,7 @@ describe('withRetry', () => {
 
     // All delays should be capped at 2000ms
     delays.forEach(delay => {
-      expect(delay).toBeLessThanOrEqual(2000);
+      expect(delay).toBeLessThanOrEqual(200);
     });
   });
 
@@ -185,8 +185,8 @@ describe('withRetry', () => {
 
   it('calls onRetry callback for each retry', async () => {
     const fn = jest.fn()
-      .mockRejectedValueOnce(new Error('error 1'))
-      .mockRejectedValueOnce(new Error('error 2'))
+      .mockRejectedValueOnce(new Error('network error 1'))
+      .mockRejectedValueOnce(new Error('network error 2'))
       .mockResolvedValue('success');
 
     const retryCallbacks: any[] = [];
@@ -200,9 +200,9 @@ describe('withRetry', () => {
 
     expect(retryCallbacks).toHaveLength(2);
     expect(retryCallbacks[0].attempt).toBe(1);
-    expect(retryCallbacks[0].error).toBe('error 1');
+    expect(retryCallbacks[0].error).toBe('network error 1');
     expect(retryCallbacks[1].attempt).toBe(2);
-    expect(retryCallbacks[1].error).toBe('error 2');
+    expect(retryCallbacks[1].error).toBe('network error 2');
   });
 
   it('respects custom maxRetries', async () => {

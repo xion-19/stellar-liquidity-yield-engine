@@ -95,6 +95,10 @@ export function calculateConfidence(
   maxSampleSize: number = 50,
   halfLifeSeconds: number = 86400, // 24 hours
 ): number {
+  if (sampleSize <= 0) {
+    return 0;
+  }
+
   // Sample size component: 0-50 points maps to 0-50 confidence
   const sampleScore = Math.min(sampleSize / maxSampleSize, 1) * 50;
   
@@ -417,6 +421,7 @@ export class ArbitrageScanner {
           investment_amount: scanOptions.investmentAmount,
           net_profit,
           apy_delta,
+          confidence: pool.confidence ?? 0,
           recommended: netApyDelta >= minApyDelta * 2,
         });
       }
@@ -648,8 +653,12 @@ export class ArbitrageOptimizer {
         b.investment_amount > BigInt(0)
           ? Number((b.net_profit * BigInt(10000)) / b.investment_amount)
           : Number.NEGATIVE_INFINITY;
-      const scoreA = netApyDeltaA - a.il_risk * riskFactor;
-      const scoreB = netApyDeltaB - b.il_risk * riskFactor;
+      const apyA = Number.isFinite(netApyDeltaA) ? netApyDeltaA : a.apy_delta;
+      const apyB = Number.isFinite(netApyDeltaB) ? netApyDeltaB : b.apy_delta;
+      const confidenceA = 0.5 + (a.confidence ?? 100) / 200;
+      const confidenceB = 0.5 + (b.confidence ?? 100) / 200;
+      const scoreA = apyA * confidenceA - a.il_risk * riskFactor;
+      const scoreB = apyB * confidenceB - b.il_risk * riskFactor;
       return scoreB - scoreA;
     });
   }
