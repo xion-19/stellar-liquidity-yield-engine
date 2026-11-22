@@ -3,11 +3,23 @@ name: SDK CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'ui/**'
+    paths:
+      - 'sdk/**'
+      - 'examples/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'jest.config.js'
+      - '.github/workflows/sdk-ci.yml'
   pull_request:
-    paths-ignore:
-      - 'ui/**'
+    paths:
+      - 'sdk/**'
+      - 'examples/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'jest.config.js'
+      - '.github/workflows/sdk-ci.yml'
 
 jobs:
   build-lint-test:
