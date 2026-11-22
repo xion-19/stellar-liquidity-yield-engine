@@ -1396,9 +1396,10 @@ mod tests {
 
     fn assert_panic_contains<F>(f: F, expected: &str)
     where
-        F: FnOnce() + std::panic::UnwindSafe,
+        F: FnOnce(),
     {
-        let payload = std::panic::catch_unwind(f).expect_err("expected panic");
+        let payload =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).expect_err("expected panic");
         let message = payload
             .downcast_ref::<String>()
             .map(String::as_str)
@@ -1420,24 +1421,31 @@ mod tests {
         let input_token = Address::generate(&env);
         let output_token = Address::generate(&env);
         let path = Vec::from_array(&env, [input_token.clone(), output_token.clone()]);
+        let contract_id = env.register(SwapRouter, ());
 
         assert_panic_contains(
-            || SwapRouter::pause_oracle(env.clone(), admin.clone()),
+            || {
+                env.as_contract(&contract_id, || {
+                    SwapRouter::pause_oracle(env.clone(), admin.clone())
+                })
+            },
             "admin not configured",
         );
 
         assert_panic_contains(
             || {
-                SwapRouter::swap(
-                    env.clone(),
-                    user,
-                    input_token,
-                    output_token,
-                    1_000,
-                    900,
-                    path,
-                    None,
-                );
+                env.as_contract(&contract_id, || {
+                    SwapRouter::swap(
+                        env.clone(),
+                        user,
+                        input_token,
+                        output_token,
+                        1_000,
+                        900,
+                        path,
+                        None,
+                    );
+                })
             },
             "treasury not configured",
         );
