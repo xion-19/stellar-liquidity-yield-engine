@@ -1,5 +1,5 @@
 import { RebalancerClient } from './rebalancer';
-import { Address } from 'stellar-sdk';
+import { Account, Address, nativeToScVal } from 'stellar-sdk';
 import { RebalanceError } from './types';
 
 describe('RebalancerClient', () => {
@@ -10,7 +10,7 @@ describe('RebalancerClient', () => {
     contracts: {
       yieldEngine: 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
       rewardDistributor: 'DAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      rebalanceEngine: 'EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      rebalanceEngine: 'CA3D5KRYM6CB7OWQ6TWYRR3Z4T7GNZLKERYNZGGA5SOAOPIFY6YQGAXE',
       strategyRegistry: 'FAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
     },
   };
@@ -21,11 +21,9 @@ describe('RebalancerClient', () => {
   beforeEach(() => {
     client = new RebalancerClient(mockNetworkConfig);
     mockServer = {
-      getAccount: jest.fn().mockResolvedValue({
-        accountId: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
-        sequence: '1',
-        subentries: 0,
-    }),
+      getAccount: jest.fn().mockResolvedValue(
+        new Account('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF', '1'),
+      ),
       simulateTransaction: jest.fn(),
       sendTransaction: jest.fn(),
     };
@@ -37,7 +35,7 @@ describe('RebalancerClient', () => {
       mockServer.simulateTransaction.mockResolvedValue({
         result: {
           status: 'SUCCESS',
-          returnValue: { value: { boolean: true } },
+          returnValue: nativeToScVal(true),
         },
       });
 
@@ -52,7 +50,7 @@ describe('RebalancerClient', () => {
       mockServer.simulateTransaction.mockResolvedValue({
         result: {
           status: 'SUCCESS',
-          returnValue: { value: { boolean: false } },
+          returnValue: nativeToScVal(false),
         },
       });
 
@@ -108,7 +106,7 @@ describe('RebalancerClient', () => {
       mockServer.simulateTransaction.mockResolvedValue({
         result: {
           status: 'SUCCESS',
-          returnValue: { value: { boolean: true } },
+          returnValue: nativeToScVal(true),
         },
       });
 
@@ -116,7 +114,7 @@ describe('RebalancerClient', () => {
       await client.isApyFresh(poolId);
 
       const tx = mockServer.simulateTransaction.mock.calls[0][0];
-      expect(tx.operations[0].body.invokeContract.functionName).toBe('is_apy_fresh');
+      expect(tx.operations[0].func.invokeContract().functionName().toString()).toBe('is_apy_fresh');
     });
   });
 });

@@ -476,7 +476,7 @@ export class VaultClient extends EventEmitter {
   private emitPauseEvent(reason: PauseReason, reasonDetails?: string): void {
     const event: VaultEvent = {
       type: 'pause',
-      vault: this.contract.address(),
+      vault: this.contract.address().toString(),
       timestamp: Math.floor(Date.now() / 1000),
       reason,
       reasonDetails
@@ -491,7 +491,7 @@ export class VaultClient extends EventEmitter {
   private emitUnpauseEvent(): void {
     const event: VaultEvent = {
       type: 'unpause',
-      vault: this.contract.address(),
+      vault: this.contract.address().toString(),
       timestamp: Math.floor(Date.now() / 1000)
     };
     this.emit('unpause', event);

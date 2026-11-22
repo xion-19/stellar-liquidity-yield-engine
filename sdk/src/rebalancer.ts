@@ -6,6 +6,7 @@ import {
   SorobanRpc,
   Transaction,
   TransactionBuilder,
+  TimeoutInfinite,
   Networks,
   BASE_FEE,
   xdr,
@@ -180,7 +181,7 @@ export class RebalancerClient extends EventEmitter {
               strategyId.toString(),
             ),
           )
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -297,7 +298,7 @@ export class RebalancerClient extends EventEmitter {
           },
         )
           .addOperation(this.contract.call("get_strategies"))
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -331,7 +332,7 @@ export class RebalancerClient extends EventEmitter {
           .addOperation(
             this.contract.call("get_strategy", strategyId.toString()),
           )
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -484,7 +485,7 @@ export class RebalancerClient extends EventEmitter {
               strategyId.toString(),
             ),
           )
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -517,7 +518,7 @@ export class RebalancerClient extends EventEmitter {
           }
         )
           .addOperation(this.contract.call('is_apy_fresh', poolId.toString()))
-          .build()
+          .setTimeout(TimeoutInfinite).build()
       );
 
       if (result.result?.status !== 'SUCCESS') {
@@ -557,7 +558,7 @@ export class RebalancerClient extends EventEmitter {
               initialPriceRatio.toString(),
             ),
           )
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -747,7 +748,7 @@ export class RebalancerClient extends EventEmitter {
           },
         )
           .addOperation(this.contract.call("get_apy_keepers"))
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -820,7 +821,7 @@ export class RebalancerClient extends EventEmitter {
           .addOperation(
             this.contract.call("get_pool_current_apy", poolId.toString()),
           )
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -853,7 +854,7 @@ export class RebalancerClient extends EventEmitter {
           .addOperation(
             this.contract.call("get_pool_apy_record", poolId.toString()),
           )
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -933,7 +934,7 @@ export class RebalancerClient extends EventEmitter {
           },
         )
           .addOperation(this.contract.call("get_max_apy_age"))
-          .build(),
+          .setTimeout(TimeoutInfinite).build(),
       );
 
       if (result.result?.status !== "SUCCESS") {
@@ -945,35 +946,6 @@ export class RebalancerClient extends EventEmitter {
       throw new RebalanceError(
         `Failed to get max APY age: ${error.message}`,
         "GET_MAX_APY_AGE_ERROR",
-      );
-    }
-  }
-
-  async isApyFresh(poolId: Address | string): Promise<boolean> {
-    try {
-      const result = await this.server.simulateTransaction(
-        new TransactionBuilder(
-          await this.server.getAccount(
-            "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
-          ),
-          {
-            fee: BASE_FEE,
-            networkPassphrase: this.getNetworkPassphrase(),
-          },
-        )
-          .addOperation(this.contract.call("is_apy_fresh", poolId.toString()))
-          .build(),
-      );
-
-      if (result.result?.status !== "SUCCESS") {
-        throw new Error("Failed to check APY freshness");
-      }
-
-      return Boolean(scValToNative(result.result.returnValue));
-    } catch (error: any) {
-      throw new RebalanceError(
-        `Failed to check APY freshness: ${error.message}`,
-        "IS_APY_FRESH_ERROR",
       );
     }
   }
